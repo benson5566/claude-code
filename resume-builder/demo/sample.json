@@ -1,0 +1,95 @@
+{
+  "profile": {
+    "name": "陳小雅",
+    "title": "Product Designer · 專注 B2B SaaS · 在台北",
+    "avatar": "https://api.dicebear.com/7.x/notionists/svg?seed=xiaoya&backgroundColor=ffd5dc",
+    "email": "xiaoya@example.com",
+    "location": "Taipei, Taiwan",
+    "summary": "6 年 UI/UX 設計經驗，擅長把複雜的 B2B 流程簡化成 3 分鐘能上手的產品。曾主導 2 個從 0 到 1 的企業產品，累積超過 8 萬名活躍使用者。相信好設計不只讓人看得懂，更讓人願意按下去。"
+  },
+  "social": {
+    "linkedin": "https://linkedin.com/in/xiaoya",
+    "github": "https://github.com/xiaoya",
+    "website": "https://xiaoya.design",
+    "twitter": "https://twitter.com/xiaoya"
+  },
+  "experiences": [
+    {
+      "company": "Acme SaaS",
+      "role": "Senior Product Designer",
+      "start": "2023-03",
+      "end": "present",
+      "achievements": [
+        "重新設計 onboarding 流程，7 天留存從 34% 提升到 58%",
+        "建立設計系統並導入 Figma Tokens，跨 3 個產品共用",
+        "帶領 2 名 junior designer，每月交付 12+ 個 feature"
+      ],
+      "tech": ["Figma", "Framer", "Notion", "Linear"]
+    },
+    {
+      "company": "StartupX",
+      "role": "Product Designer",
+      "start": "2020-06",
+      "end": "2023-02",
+      "achievements": [
+        "從 0 到 1 設計企業儀表板，上線 6 個月達 5 萬 MAU",
+        "與工程師共同建立組件庫，開發效率提升 40%",
+        "主持每週使用者訪談，產出 30+ insights"
+      ],
+      "tech": ["Sketch", "Figma", "Principle", "Maze"]
+    }
+  ],
+  "education": [
+    {
+      "school": "國立台灣科技大學",
+      "degree": "Bachelor",
+      "major": "工業設計",
+      "start": "2014-09",
+      "end": "2018-06"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Design",
+      "items": ["Product Design", "Design System", "Prototyping", "User Research", "Figma"]
+    },
+    {
+      "category": "Frontend",
+      "items": ["HTML/CSS", "React", "Tailwind", "Framer Motion"]
+    },
+    {
+      "category": "Tools",
+      "items": ["Notion", "Linear", "Miro", "Maze"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "Bento Dashboard",
+      "description": "B2B 儀表板設計案，導入 Bento Grid 架構，資訊密度提升 2.3 倍",
+      "url": "https://example.com/bento",
+      "tech": ["Figma", "React", "D3"]
+    },
+    {
+      "name": "Onboarding Redesign",
+      "description": "7 天留存 34% → 58%，專案詳述寫在 Medium",
+      "url": "https://example.com/onboarding",
+      "tech": ["UX Research", "Figma", "A/B Test"]
+    },
+    {
+      "name": "Design System: Atlas",
+      "description": "從 0 建立跨 3 個產品的設計系統，開源於 GitHub",
+      "url": "https://github.com/xiaoya/atlas",
+      "tech": ["Figma Tokens", "Storybook", "Tailwind"]
+    }
+  ],
+  "meta": {
+    "theme": "bento",
+    "lang": "zh-TW",
+    "accent": "#FF6B6B",
+    "seo": {
+      "title": "陳小雅 · Product Designer",
+      "description": "6 年 B2B SaaS 設計經驗，專注把複雜變簡單。",
+      "ogImage": ""
+    }
+  }
+}

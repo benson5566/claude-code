@@ -1,0 +1,276 @@
+/* CoffeeCV Demo — 補 Tailwind 不足的樣式 */
+
+:root {
+  --accent: #FF6B6B;
+  --accent-soft: #FF6B6B15;
+  --accent-ink: #fff;
+}
+
+html { scroll-behavior: smooth; }
+
+/* Bento preview layout */
+.bento-root {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: minmax(90px, auto);
+  gap: 14px;
+}
+
+.bento-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 20px;
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.bento-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -15px rgba(0,0,0,.15);
+}
+.bento-card h3 {
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 10px;
+}
+
+/* Card spans */
+.span-hero { grid-column: span 6; grid-row: span 2; }
+.span-3 { grid-column: span 3; }
+.span-2 { grid-column: span 2; }
+.span-4 { grid-column: span 4; }
+.span-6 { grid-column: span 6; }
+.row-2 { grid-row: span 2; }
+
+@media (max-width: 900px) {
+  .bento-root { grid-template-columns: repeat(2, 1fr); }
+  .span-hero, .span-6, .span-4, .span-3, .span-2 { grid-column: span 2; }
+}
+
+/* Hero card */
+.hero-card {
+  background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 70%, #000) 100%);
+  color: var(--accent-ink);
+  border: none;
+}
+.hero-card h3 { color: rgba(255,255,255,.7); }
+.hero-card .hero-name {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -.02em;
+  line-height: 1.05;
+  margin-bottom: 8px;
+}
+.hero-card .hero-title {
+  font-size: 1rem;
+  opacity: .9;
+  margin-bottom: 16px;
+}
+.hero-card .hero-summary {
+  font-size: .95rem;
+  line-height: 1.65;
+  opacity: .88;
+  max-width: 62ch;
+}
+.hero-avatar {
+  position: absolute;
+  right: 24px;
+  top: 24px;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  border: 2px solid rgba(255,255,255,.3);
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+}
+.hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.hero-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: .82rem;
+  opacity: .85;
+}
+.hero-meta a { color: inherit; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.3); }
+.hero-meta a:hover { border-bottom-color: #fff; }
+
+/* Stat cards */
+.stat-card {
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.stat-value {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+.stat-label {
+  font-size: .85rem;
+  color: #555;
+  margin-top: 6px;
+}
+
+/* Skill chips */
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: .78rem;
+  font-weight: 500;
+  margin: 2px 3px;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Experience timeline */
+.exp-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.exp-item:last-child { border-bottom: none; }
+.exp-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem;
+  color: #888;
+  padding-top: 2px;
+  white-space: nowrap;
+}
+.exp-role { font-weight: 600; font-size: .95rem; }
+.exp-company { color: var(--accent); font-size: .82rem; margin-bottom: 6px; }
+.exp-achievements { font-size: .82rem; color: #555; line-height: 1.55; }
+.exp-achievements li { padding-left: 16px; position: relative; margin-bottom: 3px; }
+.exp-achievements li::before {
+  content: "→"; position: absolute; left: 0; color: var(--accent);
+}
+.exp-tech {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+.exp-tech span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem;
+  padding: 2px 6px;
+  background: #f3f3f3;
+  border-radius: 4px;
+  color: #666;
+}
+
+/* Project cards */
+.project-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.project-item:last-child { border-bottom: none; }
+.project-item .name {
+  font-weight: 600; font-size: .92rem;
+  display: flex; align-items: center; gap: 6px;
+}
+.project-item .name a { color: var(--accent); text-decoration: none; }
+.project-item .desc { font-size: .82rem; color: #555; line-height: 1.55; margin-top: 4px; }
+
+/* Contact card */
+.contact-link {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fafafa;
+  font-size: .85rem;
+  color: #333;
+  text-decoration: none;
+  border: 1px solid #eee;
+  margin-bottom: 6px;
+  transition: all .15s ease;
+}
+.contact-link:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Form array item */
+.array-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  position: relative;
+}
+.array-item .remove {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  color: #999;
+  font-size: .8rem;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.array-item .remove:hover { color: #e11; border-color: #fbb; }
+.array-item input, .array-item textarea {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: .82rem;
+  background: #fff;
+  outline: none;
+  transition: border-color .15s;
+}
+.array-item input:focus, .array-item textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.array-item label {
+  display: block;
+  font-size: .7rem;
+  color: #666;
+  margin-bottom: 3px;
+  margin-top: 8px;
+  font-weight: 500;
+}
+.array-item label:first-child { margin-top: 0; }
+
+/* Mobile view toggle */
+.view-toggle.active {
+  background: #171717;
+  color: #fff;
+}
+@media (max-width: 768px) {
+  #form-panel, #preview-panel { display: none; }
+  main.view-form #form-panel { display: block; }
+  main.view-preview #preview-panel { display: block; }
+}
+
+/* Empty state */
+.preview-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: #999;
+}
+
+/* Toast visibility */
+#toast.show { opacity: 1 !important; }
+
+/* Scrollbar polish */
+#form-panel::-webkit-scrollbar, #preview-panel::-webkit-scrollbar { width: 8px; }
+#form-panel::-webkit-scrollbar-thumb, #preview-panel::-webkit-scrollbar-thumb {
+  background: #ddd; border-radius: 4px;
+}
+#form-panel::-webkit-scrollbar-thumb:hover, #preview-panel::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}

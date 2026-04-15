@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CoffeeCV · L3 Demo</title>
+<meta name="description" content="一杯咖啡的時間，擁有一張會說話的履歷" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="stylesheet" href="styles.css" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'Noto Sans TC', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+</head>
+<body class="bg-neutral-100 text-neutral-900 antialiased">
+
+<!-- Top Bar -->
+<header class="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-neutral-200">
+  <div class="mx-auto max-w-[1600px] px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <span class="text-xl">☕</span>
+      <span class="font-bold tracking-tight">CoffeeCV</span>
+      <span class="hidden md:inline text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">L3 Demo</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-load-sample" class="text-xs md:text-sm px-3 py-1.5 rounded-lg bg-neutral-900 text-white hover:bg-neutral-700 transition">
+        載入範例
+      </button>
+      <button id="btn-clear" class="text-xs md:text-sm px-3 py-1.5 rounded-lg bg-white border border-neutral-300 hover:bg-neutral-50 transition">
+        清空
+      </button>
+      <button id="btn-export" class="text-xs md:text-sm px-3 py-1.5 rounded-lg bg-white border border-neutral-300 hover:bg-neutral-50 transition">
+        匯出 JSON
+      </button>
+      <label class="text-xs md:text-sm px-3 py-1.5 rounded-lg bg-white border border-neutral-300 hover:bg-neutral-50 transition cursor-pointer">
+        匯入
+        <input id="input-import" type="file" accept="application/json" class="hidden" />
+      </label>
+      <button id="btn-share" class="text-xs md:text-sm px-3 py-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-600 transition">
+        分享連結
+      </button>
+      <button id="btn-ai" class="hidden md:inline text-xs md:text-sm px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:brightness-110 transition">
+        ✨ AI 潤稿
+      </button>
+    </div>
+  </div>
+  <!-- Mobile toggle -->
+  <div class="md:hidden border-t border-neutral-200 flex">
+    <button data-view="form" class="view-toggle flex-1 py-2 text-sm font-medium">填寫資料</button>
+    <button data-view="preview" class="view-toggle flex-1 py-2 text-sm font-medium">預覽</button>
+  </div>
+</header>
+
+<!-- Main Split Layout -->
+<main class="mx-auto max-w-[1600px] px-0 md:px-4 py-0 md:py-4 grid grid-cols-1 md:grid-cols-[minmax(380px,460px)_1fr] gap-0 md:gap-4" id="main-layout">
+
+  <!-- LEFT: FORM -->
+  <section id="form-panel" class="bg-white md:rounded-2xl border-0 md:border border-neutral-200 md:h-[calc(100vh-120px)] md:overflow-y-auto">
+    <form id="resume-form" class="p-4 md:p-6 space-y-6">
+
+      <!-- Profile -->
+      <details open class="group">
+        <summary class="flex items-center justify-between cursor-pointer list-none py-2 border-b border-neutral-200 mb-3">
+          <span class="font-semibold flex items-center gap-2"><span>👤</span> 個人資訊</span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▾</span>
+        </summary>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs font-medium text-neutral-600 mb-1">姓名 *</label>
+            <input data-path="profile.name" class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="陳小雅" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-neutral-600 mb-1">一句話定位</label>
+            <input data-path="profile.title" class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="Product Designer · 台北" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-neutral-600 mb-1">Email</label>
+              <input data-path="profile.email" type="email" class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="you@example.com" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-neutral-600 mb-1">地點</label>
+              <input data-path="profile.location" class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="Taipei" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-neutral-600 mb-1">大頭照 URL</label>
+            <input data-path="profile.avatar" class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="https://..." />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-neutral-600 mb-1">自我介紹（3-4 句）</label>
+            <textarea data-path="profile.summary" rows="4" class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm resize-none" placeholder="我是一個..."></textarea>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-neutral-600 mb-1">主題色</label>
+            <div class="flex gap-2">
+              <input data-path="meta.accent" type="color" value="#FF6B6B" class="h-9 w-14 rounded-lg border border-neutral-300 cursor-pointer" />
+              <div class="flex gap-1.5">
+                <button type="button" class="color-preset w-8 h-8 rounded-lg border border-neutral-300" style="background:#FF6B6B" data-color="#FF6B6B"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-lg border border-neutral-300" style="background:#4F46E5" data-color="#4F46E5"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-lg border border-neutral-300" style="background:#10B981" data-color="#10B981"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-lg border border-neutral-300" style="background:#F59E0B" data-color="#F59E0B"></button>
+                <button type="button" class="color-preset w-8 h-8 rounded-lg border border-neutral-300" style="background:#111827" data-color="#111827"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- Social -->
+      <details open class="group">
+        <summary class="flex items-center justify-between cursor-pointer list-none py-2 border-b border-neutral-200 mb-3">
+          <span class="font-semibold flex items-center gap-2"><span>🔗</span> 社群連結</span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▾</span>
+        </summary>
+        <div class="grid grid-cols-2 gap-3">
+          <input data-path="social.linkedin" class="px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="LinkedIn URL" />
+          <input data-path="social.github" class="px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="GitHub URL" />
+          <input data-path="social.website" class="px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="Website" />
+          <input data-path="social.twitter" class="px-3 py-2 rounded-lg border border-neutral-300 focus:border-rose-500 focus:ring-2 focus:ring-rose-100 outline-none text-sm" placeholder="Twitter / X" />
+        </div>
+      </details>
+
+      <!-- Experiences -->
+      <details open class="group">
+        <summary class="flex items-center justify-between cursor-pointer list-none py-2 border-b border-neutral-200 mb-3">
+          <span class="font-semibold flex items-center gap-2"><span>💼</span> 工作經歷</span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▾</span>
+        </summary>
+        <div id="experiences-list" class="space-y-3"></div>
+        <button type="button" data-add="experiences" class="mt-3 w-full text-sm py-2 rounded-lg border border-dashed border-neutral-300 hover:border-rose-400 hover:text-rose-500 transition">
+          + 新增一筆經歷
+        </button>
+      </details>
+
+      <!-- Skills -->
+      <details open class="group">
+        <summary class="flex items-center justify-between cursor-pointer list-none py-2 border-b border-neutral-200 mb-3">
+          <span class="font-semibold flex items-center gap-2"><span>⚡</span> 技能</span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▾</span>
+        </summary>
+        <div id="skills-list" class="space-y-3"></div>
+        <button type="button" data-add="skills" class="mt-3 w-full text-sm py-2 rounded-lg border border-dashed border-neutral-300 hover:border-rose-400 hover:text-rose-500 transition">
+          + 新增一組技能
+        </button>
+      </details>
+
+      <!-- Projects -->
+      <details open class="group">
+        <summary class="flex items-center justify-between cursor-pointer list-none py-2 border-b border-neutral-200 mb-3">
+          <span class="font-semibold flex items-center gap-2"><span>🚀</span> 作品集</span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▾</span>
+        </summary>
+        <div id="projects-list" class="space-y-3"></div>
+        <button type="button" data-add="projects" class="mt-3 w-full text-sm py-2 rounded-lg border border-dashed border-neutral-300 hover:border-rose-400 hover:text-rose-500 transition">
+          + 新增一個作品
+        </button>
+      </details>
+
+      <!-- Education -->
+      <details class="group">
+        <summary class="flex items-center justify-between cursor-pointer list-none py-2 border-b border-neutral-200 mb-3">
+          <span class="font-semibold flex items-center gap-2"><span>🎓</span> 教育（選填）</span>
+          <span class="text-neutral-400 group-open:rotate-180 transition">▾</span>
+        </summary>
+        <div id="education-list" class="space-y-3"></div>
+        <button type="button" data-add="education" class="mt-3 w-full text-sm py-2 rounded-lg border border-dashed border-neutral-300 hover:border-rose-400 hover:text-rose-500 transition">
+          + 新增學歷
+        </button>
+      </details>
+    </form>
+  </section>
+
+  <!-- RIGHT: PREVIEW -->
+  <section id="preview-panel" class="md:h-[calc(100vh-120px)] md:overflow-y-auto">
+    <div class="bg-white md:rounded-2xl border-0 md:border border-neutral-200 p-4 md:p-8 min-h-full">
+      <div id="preview-root" class="bento-root"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-neutral-900 text-white text-sm shadow-lg opacity-0 pointer-events-none transition-opacity z-[100]"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
