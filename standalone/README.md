@@ -31,17 +31,21 @@ python3 -m http.server 8000
 已內建自動部署 workflow(`.github/workflows/deploy-pages.yml`):
 到儲存庫 **Settings → Pages** 把 Source 設為「GitHub Actions」(一次性),之後每次 push 到 main 都會自動部署。
 
-## 🔄 更新新聞
-
-執行內建腳本,從主流 AI 來源的 RSS 抓取最新新聞(需 Node 18+,無需安裝套件):
+## 🔄 更新新聞(兩段式:撈原料 → AI 整理)
 
 ```bash
-node scripts/fetch-news.mjs
+node scripts/fetch-news.mjs    # 第一段:撈原始素材 → data/news-inbox.data.js
 ```
 
-腳本會更新 `data/news.data.js`。**發布前請務必人工檢查**:摘要為原文擷取(多為英文),建議翻譯改寫後再產生貼文。
+然後在 Claude Code 執行 **`/curate-news`**(第二段):篩掉不相關與行銷稿、
+把英文翻譯改寫成繁中、為每則加上「為什麼值得學 AI 的人關注」的學習視角,
+才會合併進網站顯示的 `data/news.data.js`(教學類素材會建議改收進教學庫)。
 
-新聞來源定義在 `scripts/fetch-news.mjs` 的 `FEEDS` 陣列,可自行增減。
+來源(`FEEDS` 陣列可自行增減,失效會自動跳過):
+- **官方 AI 部落格**(OpenAI / Anthropic / Google / Hugging Face):全收
+- **台灣中文媒體**(iThome / INSIDE / TechOrange):以 AI 關鍵字過濾
+
+> 原始 RSS 永遠是「原料」;沒跑 `/curate-news` 之前不會出現在網站上。
 
 ## 📥 撈取 YouTube 教學(半自動 + 人工審核)
 
