@@ -110,6 +110,18 @@ node scripts/fetch-tutorials.mjs
 
 > 進一步還能用 skill 本體的 Chrome 自動發佈功能:在網站複製草稿改用「今天發一篇」流程,由 skill 直接發到 FB / Threads / X,並追蹤戰績。
 
+## 🎬 深度分析 YouTube 影片:/analyze-video
+
+在本機 Claude Code 執行 `/analyze-video <影片網址或逐字稿>`(定義在 `.claude/commands/analyze-video.md`),
+把影片整理成**詳細的結構化筆記**(TL;DR、時間軸、核心觀念、實作步驟、名詞解釋…),存入 `articles/`。
+
+逐字稿來源(擇一):
+1. 本機裝了 [yt-dlp](https://github.com/yt-dlp/yt-dlp) → 自動下載字幕(`pip install yt-dlp`)
+2. 手動:YouTube 影片說明欄「…更多 → 顯示轉錄稿」複製貼上
+3. 也可改用 [NotebookLM](https://notebooklm.google.com/) 貼影片網址做初步分析,再把結果交給 Claude 整理
+
+筆記是詳細內容;要發社群再用 `/convert-post articles/<檔名>.md` 轉換。
+
 ## 🔁 把任意內容轉成社群貼文:/convert-post
 
 在本機 Claude Code 執行 `/convert-post <網址或內容>`(定義在 `.claude/commands/convert-post.md`),
