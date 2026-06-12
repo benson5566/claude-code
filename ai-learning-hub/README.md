@@ -110,6 +110,19 @@ node scripts/fetch-tutorials.mjs
 
 > 進一步還能用 skill 本體的 Chrome 自動發佈功能:在網站複製草稿改用「今天發一篇」流程,由 skill 直接發到 FB / Threads / X,並追蹤戰績。
 
+## 🔁 把任意內容轉成社群貼文:/convert-post
+
+在本機 Claude Code 執行 `/convert-post <網址或內容>`(定義在 `.claude/commands/convert-post.md`),
+即可把**影片、文章、網頁、任何資源**轉成四個平台的貼文草稿:
+
+```
+/convert-post https://example.com/some-article
+/convert-post(直接貼上整段文字或影片重點)
+```
+
+流程:抓取內容 → 提煉重點(英文自動翻譯改寫)→ 套 social-post skill 規則生成
+FB / Threads / X / LinkedIn 草稿 → 確認後可選擇收進網站資料庫與 `posts.data.js`。
+
 ## 📝 內容發布工作流建議
 
 1. 執行 `fetch-news.mjs` 或手動新增內容到 `data/`
