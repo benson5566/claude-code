@@ -19,6 +19,7 @@
         <button class="nav-btn" data-tab="tutorials">🎓 AI 教學</button>
         <button class="nav-btn" data-tab="resources">⭐ 精選資源</button>
         <button class="nav-btn" data-tab="workshop">🛠 貼文工坊</button>
+        <button class="nav-btn" data-tab="inbox">📥 待審<span class="nav-count" id="inbox-count" hidden></span></button>
       </nav>
     </div>
   </header>
@@ -104,6 +105,24 @@
       </div>
     </section>
 
+    <section id="tab-inbox" class="tab-panel" aria-label="待審清單">
+      <div class="section-head">
+        <h2>📥 YouTube 教學待審清單</h2>
+        <p class="section-desc">
+          <code>node scripts/fetch-tutorials.mjs</code> 從追蹤頻道撈回的候選影片。
+          人工審核後按「✅ 收錄」,再用下方匯出按鈕加進教學庫 — 教學內容品質由你把關,不自動發布。
+        </p>
+      </div>
+      <div class="inbox-export" id="inbox-export" hidden>
+        <span id="inbox-export-count"></span>
+        <button class="btn btn-primary" id="inbox-copy-code">📋 複製收錄程式碼</button>
+        <button class="btn btn-ghost" id="inbox-copy-claude">🤖 複製 Claude Code 指令</button>
+        <button class="btn btn-ghost" id="inbox-clear">清除選取</button>
+      </div>
+      <div class="card-grid" id="inbox-grid"></div>
+      <p class="empty-hint" id="inbox-empty" hidden>目前沒有待審影片。在本機執行 <code>node scripts/fetch-tutorials.mjs</code> 撈取追蹤頻道的最新影片。</p>
+    </section>
+
     <p class="empty-hint" id="empty-hint" hidden>找不到符合的內容,試試其他關鍵字或清除篩選。</p>
   </main>
 
@@ -144,6 +163,7 @@
     </div>
   </footer>
 
+  <script src="data/inbox.data.js"></script>
   <script src="data/news.data.js"></script>
   <script src="data/tutorials.data.js"></script>
   <script src="data/resources.data.js"></script>

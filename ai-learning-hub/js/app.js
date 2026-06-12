@@ -113,10 +113,11 @@
     state.filter = "全部";
     document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
     document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === "tab-" + tab));
-    const isWorkshop = tab === "workshop";
-    document.querySelector(".toolbar").style.display = isWorkshop ? "none" : "";
+    const noToolbar = tab === "workshop" || tab === "inbox";
+    document.querySelector(".toolbar").style.display = noToolbar ? "none" : "";
     $("#empty-hint").hidden = true;
-    if (!isWorkshop) {
+    if (tab === "inbox") renderInbox();
+    if (!noToolbar) {
       renderFilters();
       render();
     }
@@ -431,6 +432,83 @@
     ].join("\n");
   }
 
+  /* ---------- 待審清單(YouTube 教學候選)---------- */
+
+  const INBOX = window.INBOX_DATA || [];
+  const LS_DISMISSED = "aihub-inbox-dismissed";
+  const LS_SELECTED = "aihub-inbox-selected";
+
+  function lsGet(key) {
+    try { return new Set(JSON.parse(localStorage.getItem(key) || "[]")); }
+    catch { return new Set(); }
+  }
+  function lsSave(key, set) {
+    try { localStorage.setItem(key, JSON.stringify([...set])); } catch { /* 無痕模式等 */ }
+  }
+
+  let inboxDismissed = lsGet(LS_DISMISSED);
+  let inboxSelected = lsGet(LS_SELECTED);
+
+  function visibleInbox() {
+    const known = new Set(DATA.tutorials.map((t) => t.url));
+    return INBOX.filter((v) => !inboxDismissed.has(v.id) && !known.has(v.url));
+  }
+
+  function formatViews(n) {
+    if (n == null) return "";
+    if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, "") + " 萬次觀看";
+    return n + " 次觀看";
+  }
+
+  function renderInbox() {
+    const items = visibleInbox();
+    $("#inbox-grid").innerHTML = items.map((v) => {
+      const selected = inboxSelected.has(v.id);
+      const thumb = v.thumbnail ? `<img class="card-thumb" src="${esc(v.thumbnail)}" alt="" loading="lazy" />` : "";
+      const views = formatViews(v.views);
+      return `
+        <article class="card inbox-card${selected ? " selected" : ""}">
+          ${thumb}
+          <div class="card-meta">
+            <span class="badge">${esc(v.channel)}</span>
+            <span>${formatDate(v.date)}</span>
+            ${views ? `<span>${views}</span>` : ""}
+          </div>
+          <h3 class="card-title"><a href="${esc(v.url)}" target="_blank" rel="noopener noreferrer">${esc(v.title)}</a></h3>
+          <p class="card-summary">${esc(v.summary)}</p>
+          <div class="card-actions">
+            <button class="btn ${selected ? "btn-primary" : "btn-ghost"}" data-approve="${esc(v.id)}">${selected ? "✅ 已選,點擊取消" : "✅ 收錄"}</button>
+            <button class="btn btn-ghost" data-dismiss="${esc(v.id)}">🗑 略過</button>
+          </div>
+        </article>`;
+    }).join("");
+    $("#inbox-empty").hidden = items.length > 0;
+
+    const selCount = items.filter((v) => inboxSelected.has(v.id)).length;
+    $("#inbox-export").hidden = selCount === 0;
+    $("#inbox-export-count").textContent = `已選 ${selCount} 部影片`;
+    const countEl = $("#inbox-count");
+    countEl.hidden = items.length === 0;
+    countEl.textContent = items.length;
+  }
+
+  function tutorialEntryCode(v) {
+    return `  {
+    id: "t-${v.id}",
+    title: ${JSON.stringify(v.title)},
+    summary: ${JSON.stringify(v.summary)},
+    level: "beginner", // TODO: 入門 beginner / 中級 intermediate / 進階 advanced
+    duration: "影片",
+    url: ${JSON.stringify(v.url)},
+    tags: ["YouTube", ${JSON.stringify(v.channel)}],
+    audience: "一般人" // TODO: 一般人 / 專業人士
+  }`;
+  }
+
+  function selectedInboxItems() {
+    return visibleInbox().filter((v) => inboxSelected.has(v.id));
+  }
+
   /* ---------- 事件 ---------- */
 
   document.querySelectorAll(".nav-btn").forEach((btn) =>
@@ -514,6 +592,60 @@
     setTimeout(() => (btn.textContent = "🤖 複製 Claude Code 指令"), 2000);
   });
 
+  /* ---------- 待審清單事件 ---------- */
+
+  $("#inbox-grid").addEventListener("click", (e) => {
+    const approve = e.target.closest("[data-approve]");
+    if (approve) {
+      const id = approve.dataset.approve;
+      inboxSelected.has(id) ? inboxSelected.delete(id) : inboxSelected.add(id);
+      lsSave(LS_SELECTED, inboxSelected);
+      renderInbox();
+      return;
+    }
+    const dismiss = e.target.closest("[data-dismiss]");
+    if (dismiss) {
+      inboxDismissed.add(dismiss.dataset.dismiss);
+      inboxSelected.delete(dismiss.dataset.dismiss);
+      lsSave(LS_DISMISSED, inboxDismissed);
+      lsSave(LS_SELECTED, inboxSelected);
+      renderInbox();
+    }
+  });
+
+  async function copyText(text, btn, doneLabel, normalLabel) {
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+    }
+    btn.textContent = doneLabel;
+    setTimeout(() => (btn.textContent = normalLabel), 1800);
+  }
+
+  $("#inbox-copy-code").addEventListener("click", () => {
+    const code = selectedInboxItems().map(tutorialEntryCode).join(",\n");
+    copyText(
+      "// 貼進 data/tutorials.data.js 的陣列中,並調整 level / audience\n" + code + ",",
+      $("#inbox-copy-code"), "✅ 已複製!", "📋 複製收錄程式碼"
+    );
+  });
+
+  $("#inbox-copy-claude").addEventListener("click", () => {
+    const list = selectedInboxItems()
+      .map((v) => `- ${v.title}(${v.channel})${v.url}`)
+      .join("\n");
+    const prompt = `把以下 YouTube 教學影片加進 ai-learning-hub/data/tutorials.data.js,格式照檔案內既有項目(id 用 t-yt-<影片id>),level 與 audience 依影片主題幫我判斷,summary 改寫成 1-2 句繁體中文介紹:\n${list}\n完成後用 node --check 驗證語法。`;
+    copyText(prompt, $("#inbox-copy-claude"), "✅ 已複製,貼到 Claude Code!", "🤖 複製 Claude Code 指令");
+  });
+
+  $("#inbox-clear").addEventListener("click", () => {
+    inboxSelected = new Set();
+    lsSave(LS_SELECTED, inboxSelected);
+    renderInbox();
+  });
+
   /* ---------- 初始化 ---------- */
 
   $("#stat-news").textContent = DATA.news.length;
@@ -521,6 +653,7 @@
   $("#stat-resources").textContent = DATA.resources.length;
 
   wsRenderFormulaOptions();
+  renderInbox();
   renderFilters();
   render();
 })();

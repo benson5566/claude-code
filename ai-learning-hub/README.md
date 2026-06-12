@@ -42,6 +42,27 @@ node scripts/fetch-news.mjs
 
 新聞來源定義在 `scripts/fetch-news.mjs` 的 `FEEDS` 陣列,可自行增減。
 
+## 📥 撈取 YouTube 教學(半自動 + 人工審核)
+
+```bash
+node scripts/fetch-tutorials.mjs
+```
+
+從追蹤頻道的 **YouTube 官方 RSS**(不需 API key、不違反服務條款)撈最新影片到 `data/inbox.data.js`,
+然後到網站「📥 待審」分頁人工審核:
+
+1. **✅ 收錄**:選取要加入教學庫的影片(狀態存在瀏覽器 localStorage)
+2. **🗑 略過**:不適合的直接隱藏
+3. 匯出方式二選一:
+   - **複製收錄程式碼** → 貼進 `data/tutorials.data.js`,手動調整難度與適合對象
+   - **複製 Claude Code 指令** → 交給 Claude Code 自動寫入並判斷難度
+
+> 設計原則:**自動撈候選、人工做把關**。教學內容的品質與正確性比數量重要,
+> 錯誤的教學比沒有教學更傷讀者信任,所以不做全自動入庫。
+
+追蹤頻道清單在 `scripts/fetch-tutorials.mjs` 的 `CHANNELS` 陣列(支援 `@handle` 或 channel id),可自行增減。
+已收錄過的影片(URL 已存在於 `tutorials.data.js`)不會重複出現在待審清單。
+
 ## ✏️ 編輯內容
 
 所有內容都在 `data/` 目錄,直接編輯即可,不需建置:
