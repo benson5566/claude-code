@@ -10,10 +10,12 @@ description: 深度分析 YouTube 影片(逐字稿),整理成詳細的結構化�
 
 依序嘗試,**任何一步失敗就往下,絕不憑空編造影片內容**:
 
-1. 使用者直接貼了逐字稿 → 直接用
-2. 本機有 `yt-dlp` → `yt-dlp --write-auto-sub --sub-lang "zh-TW,zh,en" --skip-download -o "/tmp/yt-sub" <url>`
-   讀取產出的 .vtt 檔(去除時間戳重複行)。同時用 `--print "%(title)s|%(channel)s|%(duration_string)s|%(upload_date)s"` 取得影片資訊
-3. 都不行 → 請使用者用 YouTube 內建功能取得:影片說明欄下方「…更多 → 顯示轉錄稿」,全選複製貼上
+1. 使用者直接貼了逐字稿,或給了 `articles/transcripts/` 內的檔案路徑 → 直接用
+2. 給的是影片網址 → 執行 `node ai-learning-hub/scripts/transcribe.mjs <url>`
+   (自動抓現成字幕;沒字幕則 yt-dlp 下載音訊 + Whisper 本機辨識,
+   產出 `articles/transcripts/<影片id>.txt`)。Whisper 辨識可能需要數分鐘,耐心等待
+3. 腳本失敗(缺 yt-dlp / Whisper)→ 告知安裝指令:`pip install yt-dlp whisper-ctranslate2`,
+   或請使用者用 YouTube 內建功能:影片說明欄「…更多 → 顯示轉錄稿」,全選複製貼上
 
 ## 步驟 2:深度分析
 

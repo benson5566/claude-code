@@ -115,8 +115,20 @@ node scripts/fetch-tutorials.mjs
 在本機 Claude Code 執行 `/analyze-video <影片網址或逐字稿>`(定義在 `.claude/commands/analyze-video.md`),
 把影片整理成**詳細的結構化筆記**(TL;DR、時間軸、核心觀念、實作步驟、名詞解釋…),存入 `articles/`。
 
-逐字稿來源(擇一):
-1. 本機裝了 [yt-dlp](https://github.com/yt-dlp/yt-dlp) → 自動下載字幕(`pip install yt-dlp`)
+### 沒有字幕的影片也能分析:transcribe.mjs(免費語音辨識)
+
+```bash
+pip install yt-dlp whisper-ctranslate2   # 一次性安裝(免費開源)
+node scripts/transcribe.mjs <影片網址>    # 產出 articles/transcripts/<id>.txt
+```
+
+腳本流程:**先抓 YouTube 現成字幕(含自動字幕)→ 沒有才下載音訊用
+[Whisper](https://github.com/openai/whisper) 本機語音辨識**。
+Whisper 是 OpenAI 開源的辨識模型,完全免費、離線執行、支援中文;
+預設 `small` 模型(首次自動下載約 460MB,CPU 可跑),要更準用 `--model medium`。
+
+逐字稿來源總整理(擇一):
+1. `node scripts/transcribe.mjs <網址>` — 全自動,含無字幕影片
 2. 手動:YouTube 影片說明欄「…更多 → 顯示轉錄稿」複製貼上
 3. 也可改用 [NotebookLM](https://notebooklm.google.com/) 貼影片網址做初步分析,再把結果交給 Claude 整理
 
