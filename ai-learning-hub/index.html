@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 學習中心 — AI 新聞・教學・資源整理站</title>
+  <meta name="description" content="收集最新主流 AI 新聞、AI 教學與高分好用資源,一鍵產生社群媒體貼文草稿,幫助一般人與專業人士學習 AI。" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="#" class="logo" id="logo-link">
+        <span class="logo-mark">AI</span>
+        <span class="logo-text">學習中心</span>
+      </a>
+      <nav class="main-nav">
+        <button class="nav-btn active" data-tab="news">📰 AI 新聞</button>
+        <button class="nav-btn" data-tab="tutorials">🎓 AI 教學</button>
+        <button class="nav-btn" data-tab="resources">⭐ 精選資源</button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>掌握 AI 趨勢,一站搞定</h1>
+      <p class="hero-sub">收集<strong>最新主流 AI 新聞</strong>、<strong>實用教學</strong>與<strong>高分資源</strong>,<br />一鍵產生社群貼文草稿,讓你輕鬆分享 AI 知識。</p>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num" id="stat-news">0</span><span class="stat-label">則新聞</span></div>
+        <div class="stat"><span class="stat-num" id="stat-tutorials">0</span><span class="stat-label">篇教學</span></div>
+        <div class="stat"><span class="stat-num" id="stat-resources">0</span><span class="stat-label">個資源</span></div>
+      </div>
+    </div>
+  </section>
+
+  <main class="container">
+    <div class="toolbar">
+      <input type="search" id="search-input" class="search-input" placeholder="🔍 搜尋標題、內容、標籤…" />
+      <div class="filter-chips" id="filter-chips"></div>
+    </div>
+
+    <section id="tab-news" class="tab-panel active" aria-label="AI 新聞">
+      <div class="section-head">
+        <h2>📰 最新主流 AI 新聞</h2>
+        <p class="section-desc">追蹤 OpenAI、Anthropic、Google 等主流 AI 動態,點「產生貼文」即可轉成社群文章草稿。</p>
+      </div>
+      <div class="card-grid" id="news-grid"></div>
+    </section>
+
+    <section id="tab-tutorials" class="tab-panel" aria-label="AI 教學">
+      <div class="section-head">
+        <h2>🎓 AI 教學</h2>
+        <p class="section-desc">從零基礎到專業開發,依難度挑選適合你的學習路徑。</p>
+      </div>
+      <div class="card-grid" id="tutorials-grid"></div>
+    </section>
+
+    <section id="tab-resources" class="tab-panel" aria-label="精選資源">
+      <div class="section-head">
+        <h2>⭐ 高分・好用資源</h2>
+        <p class="section-desc">經過評分篩選的 AI 工具與平台,附使用建議與適合對象。</p>
+      </div>
+      <div class="card-grid" id="resources-grid"></div>
+    </section>
+
+    <p class="empty-hint" id="empty-hint" hidden>找不到符合的內容,試試其他關鍵字或清除篩選。</p>
+  </main>
+
+  <!-- 社群貼文產生器 Modal -->
+  <div class="modal-backdrop" id="post-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h3 id="modal-title">✍️ 社群貼文草稿</h3>
+        <button class="modal-close" id="modal-close" aria-label="關閉">✕</button>
+      </div>
+      <div class="platform-tabs" id="platform-tabs">
+        <button class="platform-btn active" data-platform="facebook">Facebook</button>
+        <button class="platform-btn" data-platform="threads">Threads</button>
+        <button class="platform-btn" data-platform="x">X (Twitter)</button>
+        <button class="platform-btn" data-platform="linkedin">LinkedIn</button>
+      </div>
+      <textarea id="post-draft" class="post-draft" rows="14" spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <span class="char-count" id="char-count"></span>
+        <button class="btn btn-primary" id="copy-btn">📋 複製貼文</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>AI 學習中心 — 為一般人與專業人士打造的 AI 知識整理站。</p>
+      <p class="footer-note">新聞資料可透過 <code>scripts/fetch-news.mjs</code> 自動更新,詳見 README。</p>
+    </div>
+  </footer>
+
+  <script src="data/news.data.js"></script>
+  <script src="data/tutorials.data.js"></script>
+  <script src="data/resources.data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
