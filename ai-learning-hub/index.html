@@ -18,6 +18,7 @@
         <button class="nav-btn active" data-tab="news">📰 AI 新聞</button>
         <button class="nav-btn" data-tab="tutorials">🎓 AI 教學</button>
         <button class="nav-btn" data-tab="resources">⭐ 精選資源</button>
+        <button class="nav-btn" data-tab="workshop">🛠 貼文工坊</button>
       </nav>
     </div>
   </header>
@@ -64,6 +65,45 @@
       <div class="card-grid" id="resources-grid"></div>
     </section>
 
+    <section id="tab-workshop" class="tab-panel" aria-label="貼文工坊">
+      <div class="section-head">
+        <h2>🛠 貼文工坊</h2>
+        <p class="section-desc">
+          基於 <a href="https://github.com/Hao0321/claude-skill-social-post" target="_blank" rel="noopener noreferrer" class="inline-link">social-post skill</a>
+          的公式與規則:選內容、套公式、即時檢查規則;要 AI 完整生成就複製指令丟給 Claude Code。
+        </p>
+      </div>
+      <div class="workshop">
+        <div class="workshop-controls">
+          <label class="ws-field">內容來源
+            <select id="ws-item"></select>
+          </label>
+          <label class="ws-field">平台
+            <select id="ws-platform">
+              <option value="facebook">Facebook</option>
+              <option value="threads">Threads</option>
+              <option value="x">X (Twitter)</option>
+            </select>
+          </label>
+          <label class="ws-field">公式(出自 skill)
+            <select id="ws-formula"></select>
+          </label>
+        </div>
+        <p class="ws-formula-hint" id="ws-formula-hint"></p>
+        <div class="workshop-actions">
+          <button class="btn btn-primary" id="ws-generate">⚡ 產生模板草稿</button>
+          <button class="btn btn-ghost" id="ws-claude">🤖 複製 Claude Code 指令</button>
+        </div>
+        <textarea id="ws-draft" class="post-draft" rows="12" spellcheck="false" placeholder="按「產生模板草稿」開始,【】內為需要你填入的個人化內容…"></textarea>
+        <div class="ws-row">
+          <span class="char-count" id="ws-count"></span>
+          <button class="btn btn-primary" id="ws-copy">📋 複製草稿</button>
+        </div>
+        <div class="lint-results" id="ws-lint"></div>
+        <p class="ws-note">💡 模板只是骨架。要產出「像你本人寫的」貼文,請在本機 Claude Code 安裝 social-post skill 並學過你的 FB 風格,再用「複製 Claude Code 指令」交給它生成。</p>
+      </div>
+    </section>
+
     <p class="empty-hint" id="empty-hint" hidden>找不到符合的內容,試試其他關鍵字或清除篩選。</p>
   </main>
 
@@ -80,7 +120,16 @@
         <button class="platform-btn" data-platform="x">X (Twitter)</button>
         <button class="platform-btn" data-platform="linkedin">LinkedIn</button>
       </div>
+      <div class="draft-source" id="draft-source"></div>
       <textarea id="post-draft" class="post-draft" rows="14" spellcheck="false"></textarea>
+      <div class="link-comment" id="link-comment-wrap" hidden>
+        <div class="link-comment-label">📎 發文後把連結貼到<strong>留言區</strong>(FB / Threads 正文放外部連結會被演算法降觸及)</div>
+        <div class="link-comment-row">
+          <input id="link-comment-text" class="link-comment-input" spellcheck="false" />
+          <button class="btn btn-ghost" id="copy-link-btn">複製</button>
+        </div>
+      </div>
+      <div class="lint-results compact" id="modal-lint"></div>
       <div class="modal-actions">
         <span class="char-count" id="char-count"></span>
         <button class="btn btn-primary" id="copy-btn">📋 複製貼文</button>
@@ -98,6 +147,7 @@
   <script src="data/news.data.js"></script>
   <script src="data/tutorials.data.js"></script>
   <script src="data/resources.data.js"></script>
+  <script src="data/posts.data.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
