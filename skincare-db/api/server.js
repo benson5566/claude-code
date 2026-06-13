@@ -52,10 +52,12 @@ app.get('/api', (req, res) => res.json({
     'GET/POST /api/brands',
     'GET /api/reviews/product/:product_id',
     'POST /api/reviews',
-    'GET /api/content/ingredient/:id?platform=ig|thread|fb',
+    'GET /api/content/ingredient/:id?platform=ig|thread|fb&formula=f2|f3|f6b|f19|f15mini',
     'GET /api/content/product/:id?platform=ig|thread|fb',
     'GET /api/content/tips',
     'GET /api/content/research-highlight/:id',
+    'GET /api/content/daily?day=1&platform=fb  (skill P2 使用)',
+    'GET /api/content/formula-list',
   ],
 }));
 
