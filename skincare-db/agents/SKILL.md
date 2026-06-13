@@ -24,32 +24,42 @@
 
 執行前確認：
 ```bash
-SKINCARE_API_BASE="${SKINCARE_API_BASE:-http://localhost:3000/api}"
-SKINCARE_API_KEY="${SKINCARE_API_KEY}"
-curl -sf "$SKINCARE_API_BASE/health" || echo "⚠️ DB 無法連線，將以 dry-run 模式執行"
+node skincare-db/api/skincare.js 健康
+# ✅ DB API 正常 → 繼續
+# ❌ 無法連線  → 自動切換 dry-run，告知用戶先啟動 DB
 ```
 
-從 `skincare-db/api/.env` 讀取若環境變數未設定。
+API 位址與金鑰從 `skincare-db/api/.env` 自動讀取，代理不需要處理任何設定。
 
 ---
 
-## DB API 快速參考
+## DB 操作指令（代理直接使用）
 
 ```bash
-# ── 讀取 ────────────────────────────────────────────────────────
-curl -sf -H "x-api-key: $KEY" "$BASE/ingredients?search={keyword}"
-curl -sf -H "x-api-key: $KEY" "$BASE/research?search={keyword}"
-curl -sf -H "x-api-key: $KEY" "$BASE/skin-types"
-curl -sf -H "x-api-key: $KEY" "$BASE/care-methods?time_of_day=morning|evening"
-curl -sf -H "x-api-key: $KEY" "$BASE/environment?reef_safe=true"
+CLI="node skincare-db/api/skincare.js"
 
-# ── 寫入 ────────────────────────────────────────────────────────
-curl -sf -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
-  "$BASE/ingredients" -d '{...}'
-curl -sf -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
-  "$BASE/research" -d '{...}'
-curl -sf -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
-  "$BASE/care-methods" -d '{...}'
+# ── 搜尋 ────────────────────────────────────────────────────────
+$CLI 搜尋 成分 玻尿酸
+$CLI 搜尋 研究 retinol aging
+$CLI 搜尋 產品 精華
+
+# ── 列出 ────────────────────────────────────────────────────────
+$CLI 列出 膚質
+$CLI 列出 保養方式 晚間
+$CLI 列出 環境成分
+
+# ── 查詢單筆 ────────────────────────────────────────────────────
+$CLI 查詢 成分 1
+$CLI 查詢 研究 2
+$CLI 查詢 產品 3
+
+# ── 新增 ────────────────────────────────────────────────────────
+$CLI 新增 成分 '{"name":"菸鹼醯胺","inci_name":"Niacinamide","category":"功效成分","benefits":["美白","控油"],"irritation_risk":"low"}'
+$CLI 新增 研究 '{"title":"...","key_findings":["..."],"evidence_level":"moderate"}'
+$CLI 新增 保養方式 '{"name":"...","category":"...","steps":["步驟1","步驟2"]}'
+
+# ── 連結研究與成分 ───────────────────────────────────────────────
+$CLI 連結 研究 1 成分 2
 ```
 
 ---
@@ -68,7 +78,7 @@ Agent(subagent_type="general-purpose", prompt=<D1_PROMPT>)
 你是保養品知識圖書館的「題目制定」專員。
 
 任務：
-1. 用 Bash curl 查詢 DB（ingredients、research、care-methods、skin-types），了解現有資料。
+1. 用 Bash 呼叫 `node skincare-db/api/skincare.js` 查詢 DB（搜尋成分、研究、保養方式、膚質），了解現有資料。
 2. 找出對 25-40 歲一般保養用戶最有價值的知識缺口。
 3. 制定 3-5 個符合以下條件的研究問題：
    - 可用科學文獻驗證
@@ -88,7 +98,7 @@ Agent(subagent_type="general-purpose", prompt=<D1_PROMPT>)
 
 **Input**：`{ domain: string }`
 **Output**：`Topic[]`（取前 N 題，預設 N=3）
-**Tools**：Bash（curl 讀 DB）
+**Tools**：Bash（`node skincare-db/api/skincare.js` 指令）
 
 ---
 
@@ -109,7 +119,7 @@ Agent(subagent_type="general-purpose", prompt=<D1_PROMPT>)
 • confidence 上限：DB → "high"，TRAINING_MEMORY → "medium"。
 
 流程：
-1. curl 查 DB（ingredients、research、care-methods）取得已知資料。
+1. 用 `node skincare-db/api/skincare.js 搜尋` 查 DB 取得已知資料。
 2. 整理 DB 資料（標 "DB"）。
 3. 從訓練知識補方向性線索（標 "TRAINING_MEMORY"）。
 
@@ -133,7 +143,7 @@ Agent(subagent_type="general-purpose", prompt=<D1_PROMPT>)
 
 **Input**：`{ topic: Topic }`
 **Output**：`ResearchResult`
-**Tools**：Bash（curl 讀 DB）
+**Tools**：Bash（`node skincare-db/api/skincare.js` 指令）
 
 ---
 
@@ -180,7 +190,7 @@ unknown   — 來源為 TRAINING_MEMORY 且無法確認
 
 **Input**：`{ research_result: ResearchResult, search_tool_available: false }`
 **Output**：`Verdict[]`
-**Tools**：Bash（必要時 curl 交叉比對 DB）
+**Tools**：Bash（`node skincare-db/api/skincare.js` 搜尋/查詢）
 
 **退回規則**：若存在 `needs_more_research: true` 的 Verdict，
 將 `suggested_followup` 回傳 Orchestrator → 重跑 D2（最多 1 次），合併新 findings 後重新執行 D3。
@@ -227,7 +237,7 @@ unknown   — 來源為 TRAINING_MEMORY 且無法確認
 
 **Input**：`{ claim: string, verdict: Verdict }`
 **Output**：`Perspective`
-**Tools**：Bash（必要時 curl 查 DB）
+**Tools**：Bash（`node skincare-db/api/skincare.js` 查詢）
 
 ---
 
@@ -268,7 +278,7 @@ unknown   — 來源為 TRAINING_MEMORY 且無法確認
 
 **Input**：`{ research_result, verdicts: Verdict[], perspectives: Perspective[] }`
 **Output**：`AuditReport`
-**Tools**：Bash（curl 交叉比對 DB）
+**Tools**：Bash（`node skincare-db/api/skincare.js` 搜尋/查詢）
 
 ---
 
@@ -296,7 +306,7 @@ unknown   — 來源為 TRAINING_MEMORY 且無法確認
 1. 逐項讀取 items_to_save。
 2. 補全缺少的欄位（優先 DB 現有資料，其次訓練記憶並標注）。
 3. 確認達到品質門檻。
-4. curl POST 寫入 DB，記錄回傳的 id。
+4. 用 `node skincare-db/api/skincare.js 新增` 寫入 DB，記錄回傳的 id。如有研究↔成分關聯，再用 `連結` 指令建立關係。
 
 輸出唯一格式（JSON，不加說明）：
 {
@@ -308,7 +318,7 @@ unknown   — 來源為 TRAINING_MEMORY 且無法確認
 
 **Input**：`{ audit_report: AuditReport }`
 **Output**：`SaveReport`
-**Tools**：Bash（curl 讀取 + 寫入 DB）
+**Tools**：Bash（`node skincare-db/api/skincare.js` 查詢 + 新增 + 連結）
 
 ---
 
