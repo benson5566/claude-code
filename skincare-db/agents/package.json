@@ -1,0 +1,18 @@
+{
+  "name": "skincare-agents",
+  "version": "1.0.0",
+  "description": "Multi-agent data collection system for skincare database",
+  "main": "run.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node run.js",
+    "topic": "node run.js --mode=topic",
+    "research": "node run.js --mode=research",
+    "full": "node run.js --mode=full"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0"
+  }
+}
