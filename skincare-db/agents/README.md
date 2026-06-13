@@ -1,89 +1,59 @@
-# 保養品知識圖書館 — 多代理資料收集系統
+# 保養品知識圖書館 — 資料收集管道
+
+## 執行方式
+
+**這個管道完全在 Claude Code 內執行，不需要額外的 Anthropic API Key，費用包含在你的 Claude Code 訂閱中。**
+
+在 Claude Code 中說：
+
+```
+/collect-data 抗老成分
+/collect-data 油性膚質保養
+/collect-data 環境友善防曬
+```
+
+或直接說「幫我研究玻尿酸的保養效果」。
+
+---
 
 ## 架構
 
 ```
-run.js → Orchestrator
-            │
-            ├─ Stage 1: TopicPlanner    (題目制定)  claude-haiku-4-5
-            │   └─ 分析 DB 缺口，輸出 3-7 個研究問題
-            │
-            ├─ Stage 2: Researcher      (查詢)      claude-haiku-4-5
-            │   ├─ 搜尋 DB + 網路，整理原始發現
-            │   └─ 誠實標記 UNVERIFIABLE / TRAINING_MEMORY，不補腦
-            │       ↑ retry (最多 1 次，由 Verifier 觸發)
-            │
-            ├─ Stage 3: Verifier        (檢核)      claude-opus-4-8 ← 升級
-            │   ├─ 嚴格評估科學可信度（存疑優先）
-            │   ├─ 標記 needs_more_research → 觸發 Stage 2 補查
-            │   └─ 輸出 verdict / evidence_level / safe_to_publish
-            │
-            ├─ Stage 4: DebateAgent     (多觀點)    claude-opus-4-8
-            │   └─ 六角度：支持／反對／存疑／謹慎／務實／整合
-            │
-            ├─ Stage 5: Auditor         (查核)      claude-opus-4-8
-            │   └─ 跨來源一致性、決定可入庫項目
-            │
-            └─ Stage 6: DeepResearcher  (深度研究)  claude-opus-4-8
-                └─ 補全欄位，呼叫 DB API 儲存
+Claude Code（你的 session）
+  ↓ 讀取 SKILL.md
+  ↓ 派生子代理（Agent tool，不額外計費）
+  │
+  ├─ Stage 1: 題目制定    → 分析 DB 缺口，產出 3-5 個研究問題
+  ├─ Stage 2: 查詢研究員  → 搜尋 DB，誠實標記來源（不補腦）
+  │     ↑ 退回補查（最多 1 次）
+  ├─ Stage 3: 檢核        → 嚴格驗證，存疑優先
+  ├─ Stage 4: 觀點討論    → 六角度：支持／反對／存疑／謹慎／務實／整合
+  ├─ Stage 5: 查核        → 跨來源一致性，攔截敏感宣稱
+  └─ Stage 6: 深度研究    → 補全欄位，curl POST 寫入 DB
 ```
 
-### 設計原則
+DB API 呼叫透過 Bash + curl 完成，不需要 axios 或 Node.js。
 
-| 原則 | 實作方式 |
-|---|---|
-| 高度知識水平 | Verifier / Debate / Auditor / DeepResearcher 全用 opus-4-8 |
-| 查核事實真偽 | Verifier 嚴格分級，存疑優先，TRAINING_MEMORY 不得標 verified |
-| 不胡亂編造 | Researcher 明確標記 UNVERIFIABLE，禁止憑記憶補充 WEB 來源 |
-| 不同觀點 | DebateAgent 六個立場：支持、反對、存疑、謹慎、務實、整合 |
-| 懂得討論 | Verifier → Orchestrator → Researcher 退回補查機制 |
-| 願意溝通 | needs_more_research + suggested_followup 形成對話閉環 |
-
-## 安裝
-
-```bash
-cd skincare-db/agents
-npm install
-```
+---
 
 ## 設定
 
-複製 `../api/.env` 並確保包含：
-
-```env
-ANTHROPIC_API_KEY=your_key_here
-SKINCARE_API_BASE=http://localhost:3000/api
-API_KEY=your_db_api_key
-```
-
-## 使用方式
+確保 Claude Code session 能讀到這兩個環境變數：
 
 ```bash
-# 預設領域（保養成分）
-node run.js
-
-# 指定領域
-node run.js "抗老成分"
-node run.js "油性膚質保養" --max=5
-node run.js "環境友善防曬" --dry-run   # 不實際寫入 DB
+SKINCARE_API_BASE=http://localhost:3000/api
+SKINCARE_API_KEY=your_api_key
 ```
 
-## 輸出
+---
 
-- `reports/report_<timestamp>.json` — 完整管道報告
-- 終端機摘要 + 可直接用於社群貼文的已驗證主張
+## 設計原則對應
 
-## 加入真實網路搜尋
-
-`tools.js` 的 `web_search` 預設為 stub。替換方式：
-
-```js
-// tools.js → toolImpls.web_search
-web_search: async ({ query }) => {
-  const { data } = await axios.get('https://api.search.brave.com/res/v1/web/search', {
-    params: { q: query, count: 5 },
-    headers: { 'Accept-Encoding': 'gzip', 'X-Subscription-Token': process.env.BRAVE_API_KEY },
-  });
-  return data.web?.results || [];
-},
-```
+| 原則 | 實作 |
+|---|---|
+| 高度知識水平 | Verifier / Debate / Auditor / DeepResearcher 使用 Claude Code 最強模型 |
+| 查核事實真偽 | Stage 3 嚴格分級，TRAINING_MEMORY 不得標 verified |
+| 不胡亂編造 | Stage 2 明確標 TRAINING_MEMORY，禁止補腦，DOI 不確定填 null |
+| 不同觀點 | Stage 4 六角度：存疑、謹慎、務實一定要給篇幅 |
+| 懂得討論 | Stage 3 → Orchestrator → Stage 2 退回補查閉環 |
+| 願意溝通 | 每個 Agent 有明確的 needs_more_research + suggested_followup |
