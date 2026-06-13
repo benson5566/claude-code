@@ -1,0 +1,63 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: skincare_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-skincare}
+      POSTGRES_USER: ${POSTGRES_USER:-skincare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./api/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./api/database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-skincare}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: skincare_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-skincare}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-skincare}
+      PORT: 3000
+      API_KEY: ${API_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT: ${RATE_LIMIT:-300}
+    networks:
+      - internal
+      - external
+
+  nginx:
+    image: nginx:alpine
+    container_name: skincare_nginx
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - external
+
+volumes:
+  postgres_data:
+
+networks:
+  internal:
+  external:
