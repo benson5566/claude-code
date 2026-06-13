@@ -1,11 +1,23 @@
 /**
  * Orchestrator — coordinates the full 6-agent data collection pipeline.
  *
- * Pipeline:
- *   TopicPlanner → Researcher → Verifier → DebateAgent → Auditor → DeepResearcher
+ * Pipeline (with feedback loop):
  *
- * Each stage's output feeds the next.
- * The orchestrator uses claude-opus-4-8 to make routing decisions.
+ *   TopicPlanner
+ *       ↓
+ *   Researcher ←──────────────────────────────────┐
+ *       ↓                                          │  retry (max 1x)
+ *   Verifier — needs_more_research items ──────────┘
+ *       ↓ (verified + partially_verified only)
+ *   DebateAgent
+ *       ↓
+ *   Auditor
+ *       ↓
+ *   DeepResearcher
+ *
+ * If Verifier marks items as needs_more_research, Orchestrator feeds the
+ * suggested_followup queries back to Researcher for one retry round.
+ * After the retry, Verifier runs again on the new findings only.
  */
 
 const Anthropic = require('@anthropic-ai/sdk');
@@ -66,12 +78,12 @@ class Orchestrator {
       console.log(`\n  📌 ${topic.question}`);
       const topicReport = { topic, stages: {} };
 
-      // Stage 2: Research
+      // Stage 2: Research (with one retry if Verifier requests more)
       this.log(`Stage 2｜查詢 — ${topic.question.slice(0, 50)}`);
       let researchResult;
       try {
         researchResult = await this.researcher.research(topic);
-        topicReport.stages.research = { findingsCount: researchResult.findings?.length || 0 };
+        topicReport.stages.research = { findingsCount: researchResult.findings?.length || 0, retried: false };
       } catch (err) {
         topicReport.stages.research = { error: err.message };
         report.errors.push({ stage: 'researcher', topic: topic.question, error: err.message });
@@ -79,18 +91,55 @@ class Orchestrator {
         continue;
       }
 
-      // Stage 3: Verification
-      this.log(`Stage 3｜檢核`);
+      // Stage 3: Verification (first pass)
+      this.log(`Stage 3｜檢核（第一輪）`);
       let verdicts = [];
       try {
         verdicts = await this.verifier.verify(researchResult);
         topicReport.stages.verifier = {
-          verified: verdicts.filter(v => v.verdict === 'verified').length,
-          rejected: verdicts.filter(v => v.verdict === 'misleading').length,
+          verified:          verdicts.filter(v => v.verdict === 'verified').length,
+          partiallyVerified: verdicts.filter(v => v.verdict === 'partially_verified').length,
+          unverified:        verdicts.filter(v => v.verdict === 'unverified').length,
+          rejected:          verdicts.filter(v => v.verdict === 'misleading').length,
         };
       } catch (err) {
         topicReport.stages.verifier = { error: err.message };
         report.errors.push({ stage: 'verifier', topic: topic.question, error: err.message });
+      }
+
+      // ── Feedback loop: retry research if Verifier needs more ─────────────
+      const needsMoreResearch = verdicts.filter(v => v.needs_more_research);
+      if (needsMoreResearch.length > 0) {
+        const followupQueries = needsMoreResearch
+          .map(v => v.suggested_followup)
+          .filter(Boolean);
+
+        this.log(`Stage 2b｜退回補查 — ${needsMoreResearch.length} 項需要更多資料`);
+        console.log(`  → 補查方向：${followupQueries.slice(0, 3).join(' / ')}`);
+
+        try {
+          const retryResult = await this.researcher.research(topic, followupQueries);
+          // Merge new findings (avoid duplicates by claim text)
+          const existingClaims = new Set(researchResult.findings.map(f => f.claim));
+          const newFindings = (retryResult.findings || []).filter(f => !existingClaims.has(f.claim));
+          researchResult.findings = [...researchResult.findings, ...newFindings];
+
+          // Re-verify the new findings only
+          if (newFindings.length) {
+            this.log(`Stage 3b｜重新檢核新增 ${newFindings.length} 項發現`);
+            const retryVerdicts = await this.verifier.verify({ ...retryResult, findings: newFindings });
+            verdicts = [...verdicts, ...retryVerdicts];
+          }
+
+          topicReport.stages.research.retried = true;
+          topicReport.stages.research.newFindingsOnRetry = newFindings.length;
+          topicReport.stages.verifier.afterRetry = {
+            verified:   verdicts.filter(v => v.verdict === 'verified').length,
+            unverified: verdicts.filter(v => v.verdict === 'unverified').length,
+          };
+        } catch (err) {
+          this.log(`補查失敗（繼續使用第一輪結果）: ${err.message}`);
+        }
       }
 
       // Stage 4: Multi-perspective Debate
