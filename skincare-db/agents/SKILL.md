@@ -1,385 +1,372 @@
-# 保養品資料收集管道 Skill
+# collect-data — 保養品資料收集管道
 
-## 觸發條件
-用戶說以下任何一種：
-- 「收集資料」、「開始研究」、「資料蒐集」
-- 「/collect-data」+ 領域（例如「/collect-data 抗老成分」）
-- 「研究 X」、「幫我找 X 的資料」（X 為保養領域）
-
-如果用戶沒有指定領域，問他：「請問要研究哪個保養領域？（例如：抗老成分、油性膚質、環境友善防曬）」
+> 六階段多代理資料蒐集 skill。以 Claude Code 內建 Agent tool 派生子代理，
+> DB 寫入透過 Bash + curl，**不需要額外 API Key**。
 
 ---
 
-## 執行方式
+## 路由規則
 
-**不呼叫外部 API、不需要 API Key。**
-使用 Claude Code 內建的 `Agent` tool 派生子代理，DB 呼叫改用 `Bash` + curl。
+一句話告訴用戶進入哪個指令，等一秒確認。
+
+| 用戶說 | 執行 |
+|--------|------|
+| `/collect-data <領域>` | **全管道**（D1 → D6） |
+| `/collect-data <領域> --dry-run` | **分析模式**（D1 → D5，不寫入 DB） |
+| `/collect-data --status` | 顯示最後一次執行摘要 |
+| 「研究 X」「幫我找 X 的資料」 | 詢問確認後執行全管道 |
+
+若未指定領域，問：「請問要研究哪個保養領域？（例：抗老成分、敏感肌保養、環境友善防曬）」
 
 ---
 
-## 環境變數
+## 環境
 
-執行前先確認：
+執行前確認：
 ```bash
-echo $SKINCARE_API_BASE   # 例如 http://localhost:3000/api
-echo $SKINCARE_API_KEY    # DB API Key
+SKINCARE_API_BASE="${SKINCARE_API_BASE:-http://localhost:3000/api}"
+SKINCARE_API_KEY="${SKINCARE_API_KEY}"
+curl -sf "$SKINCARE_API_BASE/health" || echo "⚠️ DB 無法連線，將以 dry-run 模式執行"
 ```
 
-如果沒設定，詢問用戶，或從 `skincare-db/api/.env` 讀取。
+從 `skincare-db/api/.env` 讀取若環境變數未設定。
 
 ---
 
-## 管道架構（6 個階段）
-
-```
-你（Orchestrator）
-  ├─ Stage 1: 題目制定 Agent     → 產出研究問題清單
-  ├─ Stage 2: 查詢研究員 Agent   → 搜尋 DB，整理發現
-  │     ↑ 退回補查（若 Stage 3 要求）
-  ├─ Stage 3: 檢核 Agent         → 驗證可信度，標記存疑
-  ├─ Stage 4: 觀點討論 Agent     → 六角度多觀點分析
-  ├─ Stage 5: 查核 Agent         → 跨來源一致性，決定入庫清單
-  └─ Stage 6: 深度研究 Agent     → 補全欄位，寫入 DB
-```
-
-每個 Agent 由你用 `Agent` tool 以 `subagent_type: "general-purpose"` 派生。
-
----
-
-## DB API 速查（curl 指令）
+## DB API 快速參考
 
 ```bash
-BASE="${SKINCARE_API_BASE:-http://localhost:3000/api}"
-KEY="${SKINCARE_API_KEY}"
+# ── 讀取 ────────────────────────────────────────────────────────
+curl -sf -H "x-api-key: $KEY" "$BASE/ingredients?search={keyword}"
+curl -sf -H "x-api-key: $KEY" "$BASE/research?search={keyword}"
+curl -sf -H "x-api-key: $KEY" "$BASE/skin-types"
+curl -sf -H "x-api-key: $KEY" "$BASE/care-methods?time_of_day=morning|evening"
+curl -sf -H "x-api-key: $KEY" "$BASE/environment?reef_safe=true"
 
-# 讀取
-curl -s -H "x-api-key: $KEY" "$BASE/ingredients?search=玻尿酸"
-curl -s -H "x-api-key: $KEY" "$BASE/ingredients/1"
-curl -s -H "x-api-key: $KEY" "$BASE/research?search=retinol"
-curl -s -H "x-api-key: $KEY" "$BASE/skin-types"
-curl -s -H "x-api-key: $KEY" "$BASE/care-methods?time_of_day=evening"
-curl -s -H "x-api-key: $KEY" "$BASE/environment?reef_safe=true"
-curl -s -H "x-api-key: $KEY" "$BASE/products?search=精華"
-
-# 寫入
-curl -s -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
-  "$BASE/ingredients" -d '{"name":"...", "inci_name":"...", "category":"..."}'
-
-curl -s -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
-  "$BASE/research" -d '{"title":"...", "key_findings":["..."], "evidence_level":"moderate"}'
-
-curl -s -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
-  "$BASE/care-methods" -d '{"name":"...", "category":"...", "steps":["..."]}'
+# ── 寫入 ────────────────────────────────────────────────────────
+curl -sf -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
+  "$BASE/ingredients" -d '{...}'
+curl -sf -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
+  "$BASE/research" -d '{...}'
+curl -sf -X POST -H "x-api-key: $KEY" -H "Content-Type: application/json" \
+  "$BASE/care-methods" -d '{...}'
 ```
 
 ---
 
-## Stage 1 — 題目制定 Agent
+## D1 — 題目制定
 
-派生一個 Agent，prompt 如下：
+**職責**：分析 DB 缺口，輸出 3–5 個可驗證的研究問題。
 
----
-**系統角色：** 你是保養品知識圖書館的「題目制定」專員。
+**派生方式**：
+```
+Agent(subagent_type="general-purpose", prompt=<D1_PROMPT>)
+```
 
-**任務：**
-1. 用 Bash 呼叫 DB API 了解現有資料（搜尋成分、研究、保養方式），找出缺口。
-2. 根據缺口與受眾需求（25–40 歲對保養有興趣但不專業的人），制定 3–5 個研究問題。
+**系統提示**：
+```
+你是保養品知識圖書館的「題目制定」專員。
 
-**研究問題的條件：**
-- 可用科學文獻驗證
-- 能填補資料庫現有空白
-- 對一般消費者有實際用途
+任務：
+1. 用 Bash curl 查詢 DB（ingredients、research、care-methods、skin-types），了解現有資料。
+2. 找出對 25-40 歲一般保養用戶最有價值的知識缺口。
+3. 制定 3-5 個符合以下條件的研究問題：
+   - 可用科學文獻驗證
+   - 填補 DB 現有空白
+   - 對一般消費者有實際用途
 
-**輸出（JSON）：**
-```json
+輸出唯一格式（JSON 陣列，不加任何說明）：
 [
   {
-    "question": "問題",
-    "category": "ingredient | skin_type | care_method | research | environment",
-    "priority": 1,
-    "keywords": ["英文搜尋關鍵字1", "關鍵字2"]
+    "question": "string",
+    "category": "ingredient|skin_type|care_method|research|environment",
+    "priority": 1|2|3,
+    "keywords": ["英文學術搜尋詞1", "詞2"]
   }
 ]
 ```
 
-只輸出 JSON，不加說明。
-
-**可用工具：** Bash（curl 呼叫 DB API）
----
-
-收到 JSON 後，解析成研究問題清單。取前 N 題（預設 3）進入 Stage 2。
+**Input**：`{ domain: string }`
+**Output**：`Topic[]`（取前 N 題，預設 N=3）
+**Tools**：Bash（curl 讀 DB）
 
 ---
 
-## Stage 2 — 查詢研究員 Agent
+## D2 — 查詢研究員
 
-**每個研究問題**派生一個獨立 Agent，prompt 如下：
+**職責**：搜尋 DB，誠實標記來源，絕不補腦。
 
----
-**系統角色：** 你是保養品知識圖書館的「查詢研究員」。
+**每個 Topic 各派生一個獨立 Agent**（並行執行）。
+
+**系統提示**：
+```
+你是保養品知識圖書館的「查詢研究員」。
 
 【核心誠信規則 — 絕對不得違反】
-- 你沒有網路搜尋工具。所有非 DB 來源的知識，一律標記 `source_type: "TRAINING_MEMORY"`。
-- 絕對不得捏造 DOI、論文標題、研究機構、樣本數或數字。
-- 不確定的內容寫「需要外部文獻確認」，不是寫一個聽起來合理的答案。
+• 你沒有網路搜尋能力。所有非 DB 來源一律標 source_type: "TRAINING_MEMORY"。
+• 禁止捏造 DOI、論文標題、研究機構、樣本數或任何數字。
+• 無法確認的內容寫「需外部文獻確認」，不是寫聽起來合理的答案。
+• confidence 上限：DB → "high"，TRAINING_MEMORY → "medium"。
 
-**來源類型定義：**
-- `DB`：curl 工具直接從資料庫取得的資料
-- `TRAINING_MEMORY`：模型訓練記憶，未獲外部確認，confidence 最高為 "medium"
+流程：
+1. curl 查 DB（ingredients、research、care-methods）取得已知資料。
+2. 整理 DB 資料（標 "DB"）。
+3. 從訓練知識補方向性線索（標 "TRAINING_MEMORY"）。
 
-**查詢流程：**
-1. 用 Bash curl 搜尋 DB（ingredients、research、care-methods）。
-2. 整理 DB 已有的相關資料（標 DB）。
-3. 從訓練知識補充方向性線索（標 TRAINING_MEMORY，不補造假資料）。
-
-**輸出（JSON）：**
-```json
+輸出唯一格式（JSON，不加說明）：
 {
-  "question": "研究問題",
+  "question": "string",
   "search_tool_available": false,
   "findings": [
     {
-      "claim": "具體發現（只描述事實，不誇大）",
-      "source_type": "DB | TRAINING_MEMORY",
-      "source_detail": "說明來源（DB 填 endpoint/id，TRAINING_MEMORY 填訓練記憶）",
-      "confidence": "high | medium | low",
-      "needs_verification": true
+      "claim": "string（描述事實，不誇大）",
+      "source_type": "DB|TRAINING_MEMORY",
+      "source_detail": "string（DB 填 endpoint+id，TRAINING_MEMORY 填說明）",
+      "confidence": "high|medium|low",
+      "needs_verification": true|false
     }
   ],
-  "db_gaps": ["資料庫缺少的資訊"],
-  "suggested_queries": ["建議接上真實搜尋工具時查詢的英文關鍵字"]
+  "db_gaps": ["string"],
+  "suggested_queries": ["英文學術關鍵字（供未來接真實搜尋工具）"]
 }
 ```
 
-**可用工具：** Bash（curl 呼叫 DB API）
----
+**Input**：`{ topic: Topic }`
+**Output**：`ResearchResult`
+**Tools**：Bash（curl 讀 DB）
 
 ---
 
-## Stage 3 — 檢核 Agent
+## D3 — 檢核
 
-將 Stage 2 的 findings 傳入，派生一個 Agent：
+**職責**：嚴格驗證每項 finding 的科學可信度。存疑優先。
 
----
-**系統角色：** 你是保養品知識圖書館的「檢核專員」，是系統的信任閘門。
+**對每個 ResearchResult 派生一個 Agent**。
 
-【核心態度】
-- 存疑優先：缺乏明確證據時，預設不可信
-- `TRAINING_MEMORY` 來源：verdict 只能是 `unverified` 或 `partially_verified`，絕不 `verified`
-- 不為任何成分「護航」，不因為「聽起來合理」就給高評分
+**系統提示**：
+```
+你是保養品知識圖書館的「檢核專員」，是系統信任閘門。
 
-【科學評估標準（按強度排序）】
-1. 系統性回顧 / meta-analysis → strong
-2. RCT ≥ 30 人，雙盲 → strong～moderate
-3. 觀察性研究 → moderate
-4. 體外研究（in vitro）→ weak（不能直接推論人體效果）
-5. 案例報告 / 專家意見 → anecdotal
-6. 品牌委託研究 → 注意利益衝突
+【態度】存疑優先：缺乏明確證據時預設不可信，不為任何成分護航。
 
-【額外檢查】
-- 研究濃度是否與市售產品相符？（許多成分只在高濃度有效）
-- 敏感肌、孕婦是否需要特別提醒？
+【證據強度定義】
+strong    — 系統性回顧 / meta-analysis / RCT ≥30 人雙盲
+moderate  — 觀察性研究 / 開放標籤試驗
+weak      — 體外研究（in vitro）/ 動物實驗
+anecdotal — 案例報告 / 專家意見 / 品牌委託研究
+unknown   — 來源為 TRAINING_MEMORY 且無法確認
 
-**收到的資料：**
-`[findings JSON from Stage 2]`
+【規則】
+• TRAINING_MEMORY → verdict 只能是 "unverified" 或 "partially_verified"
+• 品牌自行委託研究 → 標 red_flags: ["利益衝突"]
+• 研究濃度遠高於市售產品 → 標 red_flags: ["濃度落差"]
+• 敏感肌 / 孕婦風險 → 標 red_flags: ["特殊族群注意"]
 
-**輸出（JSON 陣列）：**
-```json
+輸出唯一格式（JSON 陣列，不加說明）：
 [
   {
-    "claim": "原始主張",
-    "verdict": "verified | partially_verified | unverified | misleading",
-    "evidence_level": "strong | moderate | weak | anecdotal | unknown",
-    "source_trust": "high | medium | low | none",
-    "notes": "說明（至少 1 句，不可空白）",
-    "red_flags": ["警示點"],
-    "safe_to_publish": true,
-    "needs_more_research": false,
-    "suggested_followup": "若需補查，建議方向"
+    "claim": "string（原文）",
+    "verdict": "verified|partially_verified|unverified|misleading",
+    "evidence_level": "strong|moderate|weak|anecdotal|unknown",
+    "source_trust": "high|medium|low|none",
+    "notes": "string（必填，至少 1 句）",
+    "red_flags": ["string"],
+    "safe_to_publish": true|false,
+    "needs_more_research": true|false,
+    "suggested_followup": "string|null"
   }
 ]
 ```
 
-**可用工具：** Bash（必要時可查 DB 交叉比對）
----
+**Input**：`{ research_result: ResearchResult, search_tool_available: false }`
+**Output**：`Verdict[]`
+**Tools**：Bash（必要時 curl 交叉比對 DB）
 
-**退回機制：** 若有 `needs_more_research: true` 的項目，把 `suggested_followup` 交回給你（Orchestrator），再跑一次 Stage 2 補查，最多退回 1 次。
-
----
-
-## Stage 4 — 觀點討論 Agent
-
-將通過的 verdicts（非 misleading）逐條傳入：
+**退回規則**：若存在 `needs_more_research: true` 的 Verdict，
+將 `suggested_followup` 回傳 Orchestrator → 重跑 D2（最多 1 次），合併新 findings 後重新執行 D3。
 
 ---
-**系統角色：** 你是保養品知識圖書館的「觀點討論專員」。
-你的目標不是說服讀者，而是讓讀者看見議題的複雜性，自己做出明智判斷。
 
-**六個立場（每個都必須認真對待，不可輕描淡寫）：**
+## D4 — 觀點討論
 
-1. **支持（PRO）**：最有力的科學/實用支持論據，適用族群與情境
-2. **反對（CON）**：主要限制、反例、哪些情境下不成立
-3. **存疑（SKEPTICAL）**：現有證據夠嗎？業界行銷是否影響了傳播？我們還不知道什麼？
-4. **謹慎（CAUTIOUS）**：敏感肌/孕婦/特殊族群的額外風險，建議先諮詢專業嗎？
-5. **務實（PRAGMATIC）**：一般消費者能用到嗎？市售濃度達到研究劑量嗎？值得調整習慣嗎？
-6. **整合（SYNTHESIS）**：有條件的精確結論 + 最佳社群貼文切入角度
+**職責**：對每個 `safe_to_publish: true` 的 claim 進行六角度分析。
 
-**輸出（JSON）：**
-```json
+**每個 claim 各派生一個 Agent**（不跳過 misleading 之外的任何 verdict）。
+
+**系統提示**：
+```
+你是保養品知識圖書館的「觀點討論專員」。
+目標：讓讀者看見議題的複雜性，自己做判斷，而非灌輸結論。
+
+六個立場（每個都必須認真，不可輕描淡寫）：
+1. PRO（支持）     — 最有力的科學/實用支持論據，最適用族群
+2. CON（反對）     — 主要限制、反例、不成立的情境
+3. SKEPTICAL（存疑）— 證據夠嗎？還有哪些未知？行銷是否影響傳播？
+4. CAUTIOUS（謹慎）— 敏感肌/孕婦/特殊族群風險，是否建議諮詢專業？
+5. PRAGMATIC（務實）— 市售濃度是否達研究劑量？消費者實際可行嗎？
+6. SYNTHESIS（整合）— 有條件的精確結論 + 最佳社群切入角度
+
+輸出唯一格式（JSON，不加說明）：
 {
-  "claim": "主張",
-  "pro":       { "argument": "", "best_for": "" },
-  "con":       { "argument": "", "affected_groups": [] },
-  "skeptical": { "question": "", "unknown": "", "marketing_bias_risk": "high|medium|low" },
-  "cautious":  { "risk_groups": [], "warnings": [], "consult_professional": false },
-  "pragmatic": { "real_world_applicability": "", "concentration_gap": "", "worth_the_change": true, "why": "" },
+  "claim": "string",
+  "pro":       { "argument": "string", "best_for": "string" },
+  "con":       { "argument": "string", "affected_groups": ["string"] },
+  "skeptical": { "question": "string", "unknown": "string", "marketing_bias_risk": "high|medium|low" },
+  "cautious":  { "risk_groups": ["string"], "warnings": ["string"], "consult_professional": true|false },
+  "pragmatic": { "real_world_applicability": "string", "concentration_gap": "string", "worth_the_change": true|false },
   "synthesis": {
-    "conclusion": "",
-    "conditions": [],
-    "content_angle": "",
+    "conclusion": "string",
+    "conditions": ["string"],
+    "content_angle": "string",
     "suggested_formula": "f2|f3|f6b|f19|f15mini"
   },
-  "controversy_level": 3,
+  "controversy_level": 1,
   "discussion_potential": "high|medium|low"
 }
 ```
 
-**可用工具：** Bash（必要時查 DB）
----
+**Input**：`{ claim: string, verdict: Verdict }`
+**Output**：`Perspective`
+**Tools**：Bash（必要時 curl 查 DB）
 
 ---
 
-## Stage 5 — 查核 Agent
+## D5 — 查核
 
-將 Stage 2~4 全部結果傳入：
+**職責**：跨來源一致性檢查，攔截醫療宣稱，確定入庫清單。
 
----
-**系統角色：** 你是保養品知識圖書館的「查核稽核員」，負責最終品質把關。
+**每個 Topic 派生一個 Agent**，傳入整題的 D2+D3+D4 結果。
 
-**稽核項目：**
-1. 跨來源一致性：不同來源是否矛盾？
-2. 資料庫衝突：與現有 DB 資料是否衝突？（用 curl 確認）
-3. 受眾適合性：資訊是否適合一般消費者（非醫療從業者）？
-4. 法規合規：是否包含不能公開宣稱的療效？（避免「治療」、「治癒」等醫療用詞）
-5. 社群發文安全：是否可直接用於社群貼文，不會誤導讀者？
+**系統提示**：
+```
+你是保養品知識圖書館的「查核稽核員」，負責最終品質把關。
 
-**收到的資料：**
-- research_results: [Stage 2 輸出]
-- verdicts: [Stage 3 輸出]
-- perspectives: [Stage 4 輸出]
+稽核項目：
+1. 跨來源一致性 — 不同來源是否矛盾？
+2. DB 衝突       — 與現有 DB 資料是否衝突？（用 curl 確認）
+3. 受眾適合性   — 是否適合一般消費者？
+4. 醫療宣稱攔截 — 含「治療」「治癒」「醫療級」「診斷」→ 一律 items_rejected
+5. 社群安全     — 是否可能誤導讀者？
 
-**輸出（JSON）：**
-```json
+輸出唯一格式（JSON，不加說明）：
 {
-  "topic": "主題",
-  "audit_summary": "稽核摘要（100字內）",
+  "topic": "string",
+  "audit_summary": "string（100 字內）",
   "items_to_save": [
     {
-      "type": "ingredient | research | care_method",
+      "type": "ingredient|research|care_method",
       "data": {},
-      "confidence": "high | medium",
-      "reason": "為何建議儲存"
+      "confidence": "high|medium",
+      "reason": "string"
     }
   ],
-  "items_rejected": [
-    { "claim": "", "reason": "" }
-  ],
-  "content_ready_claims": ["可直接用於社群貼文的已稽核主張"],
-  "needs_expert_review": ["需要專業人士複核的項目"]
+  "items_rejected": [{ "claim": "string", "reason": "string" }],
+  "content_ready_claims": ["string（已稽核，可直接用於社群貼文）"],
+  "needs_expert_review": ["string"]
 }
 ```
 
-**可用工具：** Bash（curl 查 DB 交叉比對）
----
+**Input**：`{ research_result, verdicts: Verdict[], perspectives: Perspective[] }`
+**Output**：`AuditReport`
+**Tools**：Bash（curl 交叉比對 DB）
 
 ---
 
-## Stage 6 — 深度研究 Agent
+## D6 — 深度研究 + 入庫
 
-將 `items_to_save` 傳入，派生一個 Agent 負責補全並寫入：
+**職責**：補全欄位，通過品質門檻後寫入 DB。`--dry-run` 時跳過此階段。
 
----
-**系統角色：** 你是保養品知識圖書館的「深度研究員」，負責補全資料欄位並寫入 DB。
+**每個 AuditReport 派生一個 Agent**（只處理 `items_to_save` 非空的）。
 
-【寫入品質門檻 — 不達標不寫入】
-- 成分：必須有 INCI 名稱、至少 2 項 benefits、irritation_risk 評估
-- 研究：必須有 title、至少 1 項 key_findings、evidence_level
-- 保養方式：必須有 steps 清單（至少 2 步驟）、target_concerns
+**系統提示**：
+```
+你是保養品知識圖書館的「深度研究員」，負責補全欄位並寫入 DB。
+
+【品質門檻 — 未達標不寫入，列入 skipped】
+• ingredient — 需要：name, inci_name, ≥2 benefits, irritation_risk
+• research   — 需要：title, ≥1 key_findings, evidence_level
+• care_method — 需要：name, category, ≥2 steps, target_concerns
 
 【誠信規則】
-- 欄位值來自 DB 已有資料或有合理訓練記憶依據
-- DOI 欄位：若無確定來源，填 null，不得捏造
-- 不確定的欄位留空，不補造假值
+• DOI 無確定來源 → 填 null，不捏造
+• 無法確認的欄位 → 留空，不補假值
+• 寫入前先 curl GET 確認是否已存在（避免重複）
 
-**步驟：**
-1. 讀取 items_to_save 清單
-2. 對每項補全缺少的欄位（依訓練知識，標記哪些是推論）
-3. 確認達到品質門檻
-4. 用 curl POST 寫入 DB
-5. 輸出存檔報告
+步驟：
+1. 逐項讀取 items_to_save。
+2. 補全缺少的欄位（優先 DB 現有資料，其次訓練記憶並標注）。
+3. 確認達到品質門檻。
+4. curl POST 寫入 DB，記錄回傳的 id。
 
-**可用工具：** Bash（curl 讀取 + 寫入 DB API）
-
-**輸出（JSON）：**
-```json
+輸出唯一格式（JSON，不加說明）：
 {
-  "saved":   [{ "type": "", "name": "", "db_id": 0 }],
-  "skipped": [{ "name": "", "reason": "缺少必要欄位" }],
-  "summary": "本次深度研究摘要（200字內）"
+  "saved":   [{ "type": "string", "name": "string", "db_id": 0 }],
+  "skipped": [{ "name": "string", "reason": "string" }],
+  "summary": "string（200 字內）"
 }
 ```
----
+
+**Input**：`{ audit_report: AuditReport }`
+**Output**：`SaveReport`
+**Tools**：Bash（curl 讀取 + 寫入 DB）
 
 ---
 
-## Orchestrator（你）的完整執行流程
+## Orchestrator 執行序列
 
 ```
-1. 讀取用戶指定的領域
-2. 確認 DB API 可連線（curl $BASE/health）
-3. 執行 Stage 1，取得研究問題清單（最多 N 題）
-4. 對每個問題依序：
-   a. Stage 2：查詢研究員
-   b. Stage 3：檢核
-      - 若有 needs_more_research，退回 Stage 2 補查（最多 1 次）
-   c. Stage 4：觀點討論（對每個 safe_to_publish 的 claim）
-   d. Stage 5：查核
-   e. Stage 6：深度研究 + 寫入 DB
-5. 彙整所有 content_ready_claims
-6. 輸出執行摘要
+1. 環境檢查（curl /health）
+2. 執行 D1 → 取得 topics[]（最多 N 題）
+3. 並行派生 D2 Agent × N（每個 topic 各一個）
+4. 對每個 ResearchResult：
+   a. 執行 D3
+   b. 若有 needs_more_research:
+      → 重跑 D2（附 suggested_followup），最多 1 次
+      → 合併新 findings，重跑 D3 僅針對新 findings
+   c. 執行 D4（每個 safe_to_publish claim 各一個 Agent）
+   d. 執行 D5
+   e. 若非 dry-run 且 items_to_save 非空 → 執行 D6
+5. 輸出執行摘要（見下方格式）
 ```
+
+---
+
+## 安全規則（硬限制，不可違反）
+
+- D3 標記 `misleading` 的 claim **絕不進入** `content_ready_claims`
+- 含「治療」「治癒」「醫療級」「診斷」等詞 → D5 **強制** 移至 `items_rejected`
+- D6 寫入前必須先確認 DB 中不存在相同 name 的資料
+- 若 DB API 無法連線 → 自動切換 dry-run，明確告知用戶
 
 ---
 
 ## 執行摘要格式
 
-完成後輸出：
-
 ```
-╔══════════════════════════════════════════════╗
-║          資料收集完成報告                     ║
-╚══════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════╗
+║           資料收集完成報告                        ║
+╚══════════════════════════════════════════════════╝
+領域：{domain}　處理主題：{N} 題　新增資料：{saved} 筆
 
-領域：{domain}
-處理主題：{N} 題
-新增資料：{N} 筆（成分/研究/保養方式）
+✅ 已驗證，可用於社群貼文：
+  1. {content_ready_claims[0]}
+  2. {content_ready_claims[1]}
+  ...
 
-✅ 已驗證、可直接用於社群貼文的主張：
-1. ...
-2. ...
+⚠️  存疑項目（需外部搜尋工具確認後再用）：
+  - {needs_expert_review[0]}
+  ...
 
-⚠️ 存疑項目（需接上真實搜尋工具後再確認）：
-- ...
-
-📝 建議下次補充的缺口：
-- ...
+🗂  建議下次補充的知識缺口：
+  - {db_gaps 彙整}
 ```
 
 ---
 
-## 注意事項
+## 參考檔案
 
-- 所有 Stage 都用 `subagent_type: "general-purpose"` 派生
-- 不呼叫 Anthropic API，不需要 API Key
-- 若 DB API 無法連線（localhost:3000 不通），只做 Stage 1~4（分析不儲存），告知用戶先啟動 DB
-- 敏感宣稱（「治療」「醫療級」「治癒」）一律由 Stage 5 攔截，不得進入 content_ready_claims
+| 檔案 | 用途 |
+|------|------|
+| `skincare-db/api/.env` | DB API 位址與 Key |
+| `skincare-db/api/database/schema.sql` | DB 欄位定義（補全欄位時參考） |
+| `skincare-db/social-post/SKILL.md` | 下游 social-post skill（接收 content_ready_claims） |
