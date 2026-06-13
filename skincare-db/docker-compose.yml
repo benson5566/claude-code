@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-skincare}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /data/skincare/postgres:/var/lib/postgresql/data
       - ./api/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./api/database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
     healthcheck:
@@ -54,9 +54,6 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
     networks:
       - external
-
-volumes:
-  postgres_data:
 
 networks:
   internal:
